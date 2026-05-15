@@ -92,6 +92,67 @@ triggers:
   assert.match(payload.hookSpecificOutput.additionalContext, /验证根因/);
 });
 
+test('project-local skills match by metadata but do not inject raw body content', () => {
+  const sandboxDir = mkdtempSync(path.join(os.tmpdir(), 'skill-router-route-local-'));
+  const homeDir = path.join(sandboxDir, 'home');
+  const projectDir = path.join(sandboxDir, 'project');
+  const dataDir = path.join(sandboxDir, 'plugin-data');
+
+  mkdirSync(path.join(homeDir, '.claude', 'skills'), { recursive: true });
+  mkdirSync(projectDir, { recursive: true });
+
+  writeSkill(
+    projectDir,
+    '.claude/skills/local-debug',
+    `---
+name: local-debug
+description: Local debugging helper.
+domain_tags:
+  - coding
+task_tags:
+  - debugging
+triggers:
+  - 本地报错
+  - 本地调试
+---
+项目内私有步骤。
+不要把这段正文直接注入。
+`
+  );
+
+  const initResult = spawnSync('node', ['/Users/lpb/workspace/myProjects/plugin/ClaudeCodeSkillRouterPlugin/router/init.js'], {
+    cwd: projectDir,
+    env: {
+      ...process.env,
+      HOME: homeDir,
+      CLAUDE_PLUGIN_DATA: dataDir,
+    },
+    encoding: 'utf8',
+  });
+
+  assert.equal(initResult.status, 0, initResult.stderr);
+
+  const routeResult = spawnSync('node', ['/Users/lpb/workspace/myProjects/plugin/ClaudeCodeSkillRouterPlugin/router/route.js'], {
+    cwd: projectDir,
+    env: {
+      ...process.env,
+      HOME: homeDir,
+      CLAUDE_PLUGIN_DATA: dataDir,
+      CLAUDE_USER_PROMPT: '请帮我处理本地报错',
+    },
+    encoding: 'utf8',
+  });
+
+  assert.equal(routeResult.status, 0, routeResult.stderr);
+
+  const payload = JSON.parse(routeResult.stdout);
+  assert.equal(payload.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
+  assert.match(payload.hookSpecificOutput.additionalContext, /local-debug/);
+  assert.match(payload.hookSpecificOutput.additionalContext, /Local debugging helper/);
+  assert.doesNotMatch(payload.hookSpecificOutput.additionalContext, /项目内私有步骤/);
+  assert.doesNotMatch(payload.hookSpecificOutput.additionalContext, /不要把这段正文直接注入/);
+});
+
 test('route fails open with empty additionalContext when registry data is missing', () => {
   const sandboxDir = mkdtempSync(path.join(os.tmpdir(), 'skill-router-route-empty-'));
   const projectDir = path.join(sandboxDir, 'project');

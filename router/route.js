@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { buildAdditionalContext } from './inject-context.js';
+import { selectSkill } from './score-skills.js';
 
 function readRegistry(pluginDataDir) {
   const registryPath = path.join(pluginDataDir, 'registry', 'skills.json');
@@ -28,45 +29,6 @@ function readTrustedSkillBody(skill) {
   }
 
   return content.slice(endIndex + 4).trim();
-}
-
-function scoreSkill(skill, prompt) {
-  const promptText = prompt.toLowerCase();
-  const triggers = Array.isArray(skill.triggers) ? skill.triggers : [];
-  const taskTags = Array.isArray(skill.task_tags) ? skill.task_tags : [];
-  const domainTags = Array.isArray(skill.domain_tags) ? skill.domain_tags : [];
-  const antiTriggers = Array.isArray(skill.anti_triggers) ? skill.anti_triggers : [];
-
-  const triggerScore = triggers.reduce(
-    (total, trigger) => total + (promptText.includes(String(trigger).toLowerCase()) ? 3 : 0),
-    0
-  );
-  const taskTagScore = taskTags.reduce(
-    (total, tag) => total + (promptText.includes(String(tag).toLowerCase()) ? 2 : 0),
-    0
-  );
-  const domainTagScore = domainTags.reduce(
-    (total, tag) => total + (promptText.includes(String(tag).toLowerCase()) ? 1 : 0),
-    0
-  );
-  const antiTriggerPenalty = antiTriggers.reduce(
-    (total, trigger) => total + (promptText.includes(String(trigger).toLowerCase()) ? 4 : 0),
-    0
-  );
-
-  return triggerScore + taskTagScore + domainTagScore - antiTriggerPenalty;
-}
-
-function selectSkill(skills, prompt) {
-  const ranked = skills
-    .map((skill) => ({ skill, score: scoreSkill(skill, prompt) }))
-    .sort((left, right) => right.score - left.score);
-
-  if (ranked.length === 0 || ranked[0].score <= 0) {
-    return null;
-  }
-
-  return ranked[0].skill;
 }
 
 const pluginDataDir = process.env.CLAUDE_PLUGIN_DATA;
