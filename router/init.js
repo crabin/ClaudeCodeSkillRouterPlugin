@@ -162,11 +162,13 @@ function initPluginData(pluginDataDir, projectRoot) {
   const configDir = path.join(pluginDataDir, 'config');
   const statsDir = path.join(pluginDataDir, 'stats');
   const taxonomyDir = path.join(pluginDataDir, 'taxonomy');
+  const workflowsDir = path.join(pluginDataDir, 'workflows');
 
   ensureDir(registryDir);
   ensureDir(configDir);
   ensureDir(statsDir);
   ensureDir(taxonomyDir);
+  ensureDir(workflowsDir);
 
   const registry = buildRegistry(projectRoot);
 
@@ -184,6 +186,21 @@ function initPluginData(pluginDataDir, projectRoot) {
   writeFileSync(
     path.join(taxonomyDir, 'tags.json'),
     `${JSON.stringify({ domains: { coding: ['debugging', 'planning'] } }, null, 2)}\n`
+  );
+  writeFileSync(
+    path.join(workflowsDir, 'workflows.json'),
+    `${JSON.stringify({
+      workflows: [
+        {
+          id: 'research-to-plan',
+          description: 'Research a technical topic and turn findings into an execution plan.',
+          domain_tags: ['coding'],
+          task_tags: ['planning'],
+          triggers: ['先调研再给出方案', '调研并给出方案'],
+          steps: ['systematic-debugging', 'write-plans'],
+        },
+      ],
+    }, null, 2)}\n`
   );
   writeFileSync(path.join(pluginDataDir, '.initialized'), 'true\n');
 }

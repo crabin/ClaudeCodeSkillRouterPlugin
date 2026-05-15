@@ -1,4 +1,18 @@
-export function buildAdditionalContext(skill, skillBody, confidence) {
+export function buildAdditionalContext(selection, skillBody = '') {
+  if (!selection) {
+    return '';
+  }
+
+  if (selection.type === 'workflow') {
+    const workflow = selection.workflow;
+    const taskTags = Array.isArray(workflow.task_tags) ? workflow.task_tags.join(', ') : '';
+    const steps = Array.isArray(workflow.steps) ? workflow.steps.join(' → ') : '';
+    const scope = `当前任务被识别为 coding/${taskTags}`;
+
+    return `${scope}。检测到多步 workflow ${workflow.id}：${workflow.description}${steps ? `。建议顺序：${steps}` : ''}`;
+  }
+
+  const { skill, confidence } = selection;
   const taskTags = Array.isArray(skill.task_tags) ? skill.task_tags.join(', ') : '';
   const triggerHints = Array.isArray(skill.triggers) ? skill.triggers.slice(0, 3).join('、') : '';
   const scope = `当前任务被识别为 coding/${taskTags}`;

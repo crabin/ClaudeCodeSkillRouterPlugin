@@ -4,6 +4,7 @@ import path from 'node:path';
 import { classifyPrompt } from './classify-tags.js';
 import { buildAdditionalContext } from './inject-context.js';
 import { logRoute } from './log-route.js';
+import { resolveWorkflow } from './resolve-workflow.js';
 import { selectSkill } from './score-skills.js';
 
 function readRegistry(pluginDataDir) {
@@ -67,20 +68,25 @@ if (!prompt) {
 
 const skills = readRegistry(pluginDataDir);
 const classification = classifyPrompt(prompt);
-const selectedMatch = selectSkill(skills, prompt, classification);
+const selectedWorkflow = resolveWorkflow(pluginDataDir, prompt, classification);
+const selectedMatch = selectedWorkflow ? null : selectSkill(skills, prompt, classification);
 const selectedSkill = selectedMatch ? selectedMatch.skill : null;
 const skillBody =
   selectedMatch?.confidence === 'high' && selectedSkill
     ? readTrustedSkillBody(selectedSkill)
     : '';
-const additionalContext = selectedMatch
-  ? buildAdditionalContext(selectedSkill, skillBody, selectedMatch.confidence)
-  : '';
+const selection = selectedWorkflow
+  ? { type: 'workflow', workflow: selectedWorkflow }
+  : selectedMatch
+    ? { type: 'skill', skill: selectedSkill, confidence: selectedMatch.confidence }
+    : null;
+const additionalContext = buildAdditionalContext(selection, skillBody);
 
 logRoute(pluginDataDir, {
   prompt,
   domain_tags: classification.domain_tags,
   task_tags: classification.task_tags,
+  selected_workflow: selectedWorkflow ? selectedWorkflow.id : null,
   selected_skill: selectedSkill ? selectedSkill.name : null,
   confidence: selectedMatch ? selectedMatch.confidence : null,
 });

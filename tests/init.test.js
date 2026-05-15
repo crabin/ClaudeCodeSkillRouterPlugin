@@ -75,6 +75,7 @@ triggers:
   const routerConfig = JSON.parse(readFileSync(path.join(dataDir, 'config', 'router-config.json'), 'utf8'));
   const stats = JSON.parse(readFileSync(path.join(dataDir, 'stats', 'stats.json'), 'utf8'));
   const tags = JSON.parse(readFileSync(path.join(dataDir, 'taxonomy', 'tags.json'), 'utf8'));
+  const workflows = JSON.parse(readFileSync(path.join(dataDir, 'workflows', 'workflows.json'), 'utf8'));
 
   assert.equal(skills.skills.length, 2);
   assert.deepEqual(tagsIndex.task_tags.debugging, ['systematic-debugging']);
@@ -83,5 +84,7 @@ triggers:
   assert.equal(routerConfig.mode, 'compatibility');
   assert.equal(stats.total_routes, 0);
   assert.deepEqual(tags.domains.coding, ['debugging', 'planning']);
+  assert.equal(workflows.workflows.length > 0, true);
+  assert.equal(workflows.workflows[0].id, 'research-to-plan');
   assert.match(result.stdout, /initialized/i);
 });

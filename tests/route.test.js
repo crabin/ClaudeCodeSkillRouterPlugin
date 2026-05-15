@@ -101,6 +101,224 @@ triggers:
   assert.equal(lastLog.selected_skill, 'systematic-debugging');
 });
 
+test('route injects workflow guidance for explicit multi-step prompts', () => {
+  const sandboxDir = mkdtempSync(path.join(os.tmpdir(), 'skill-router-route-workflow-'));
+  const homeDir = path.join(sandboxDir, 'home');
+  const projectDir = path.join(sandboxDir, 'project');
+  const dataDir = path.join(sandboxDir, 'plugin-data');
+
+  mkdirSync(path.join(homeDir, '.claude', 'skills'), { recursive: true });
+  mkdirSync(projectDir, { recursive: true });
+
+  writeSkill(
+    homeDir,
+    '.claude/skills/systematic-debugging',
+    `---
+name: systematic-debugging
+description: Diagnose and resolve programming errors.
+domain_tags:
+  - coding
+task_tags:
+  - debugging
+triggers:
+  - 排查 bug
+  - 报错
+---
+先复现问题。
+再缩小错误范围。
+`
+  );
+
+  writeSkill(
+    projectDir,
+    '.claude/skills/write-plans',
+    `---
+name: write-plans
+description: Turn requests into concrete execution plans.
+domain_tags:
+  - coding
+task_tags:
+  - planning
+triggers:
+  - 计划
+  - 方案
+---
+`
+  );
+
+  const initResult = spawnSync('node', ['/Users/lpb/workspace/myProjects/plugin/ClaudeCodeSkillRouterPlugin/router/init.js'], {
+    cwd: projectDir,
+    env: {
+      ...process.env,
+      HOME: homeDir,
+      CLAUDE_PLUGIN_DATA: dataDir,
+    },
+    encoding: 'utf8',
+  });
+
+  assert.equal(initResult.status, 0, initResult.stderr);
+
+  const routeResult = spawnSync('node', ['/Users/lpb/workspace/myProjects/plugin/ClaudeCodeSkillRouterPlugin/router/route.js'], {
+    cwd: projectDir,
+    env: {
+      ...process.env,
+      HOME: homeDir,
+      CLAUDE_PLUGIN_DATA: dataDir,
+      CLAUDE_USER_PROMPT: '先调研再给出方案',
+    },
+    encoding: 'utf8',
+  });
+
+  assert.equal(routeResult.status, 0, routeResult.stderr);
+
+  const payload = JSON.parse(routeResult.stdout);
+  assert.equal(payload.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
+  assert.match(payload.hookSpecificOutput.additionalContext, /research-to-plan/);
+  assert.match(payload.hookSpecificOutput.additionalContext, /Research a technical topic/);
+  assert.match(payload.hookSpecificOutput.additionalContext, /systematic-debugging/);
+  assert.match(payload.hookSpecificOutput.additionalContext, /write-plans/);
+  assert.doesNotMatch(payload.hookSpecificOutput.additionalContext, /先复现问题/);
+
+  const logPath = path.join(dataDir, 'stats', 'routing-log.jsonl');
+  const logLines = readFileSync(logPath, 'utf8').trim().split('\n');
+  const lastLog = JSON.parse(logLines.at(-1));
+
+  assert.equal(lastLog.selected_workflow, 'research-to-plan');
+  assert.equal(lastLog.selected_skill, null);
+});
+
+test('route keeps using a single skill for simple planning prompts', () => {
+  const sandboxDir = mkdtempSync(path.join(os.tmpdir(), 'skill-router-route-skill-fallback-'));
+  const homeDir = path.join(sandboxDir, 'home');
+  const projectDir = path.join(sandboxDir, 'project');
+  const dataDir = path.join(sandboxDir, 'plugin-data');
+
+  mkdirSync(path.join(homeDir, '.claude', 'skills'), { recursive: true });
+  mkdirSync(projectDir, { recursive: true });
+
+  writeSkill(
+    projectDir,
+    '.claude/skills/write-plans',
+    `---
+name: write-plans
+description: Turn requests into concrete execution plans.
+domain_tags:
+  - coding
+task_tags:
+  - planning
+triggers:
+  - 计划
+  - 方案
+---
+`
+  );
+
+  const initResult = spawnSync('node', ['/Users/lpb/workspace/myProjects/plugin/ClaudeCodeSkillRouterPlugin/router/init.js'], {
+    cwd: projectDir,
+    env: {
+      ...process.env,
+      HOME: homeDir,
+      CLAUDE_PLUGIN_DATA: dataDir,
+    },
+    encoding: 'utf8',
+  });
+
+  assert.equal(initResult.status, 0, initResult.stderr);
+
+  const routeResult = spawnSync('node', ['/Users/lpb/workspace/myProjects/plugin/ClaudeCodeSkillRouterPlugin/router/route.js'], {
+    cwd: projectDir,
+    env: {
+      ...process.env,
+      HOME: homeDir,
+      CLAUDE_PLUGIN_DATA: dataDir,
+      CLAUDE_USER_PROMPT: '请给我一个实现方案',
+    },
+    encoding: 'utf8',
+  });
+
+  assert.equal(routeResult.status, 0, routeResult.stderr);
+
+  const payload = JSON.parse(routeResult.stdout);
+  assert.equal(payload.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
+  assert.match(payload.hookSpecificOutput.additionalContext, /write-plans/);
+  assert.doesNotMatch(payload.hookSpecificOutput.additionalContext, /research-to-plan/);
+
+  const logPath = path.join(dataDir, 'stats', 'routing-log.jsonl');
+  const logLines = readFileSync(logPath, 'utf8').trim().split('\n');
+  const lastLog = JSON.parse(logLines.at(-1));
+
+  assert.equal(lastLog.selected_workflow, null);
+  assert.equal(lastLog.selected_skill, 'write-plans');
+});
+
+test('route fails open when workflow data is malformed', () => {
+  const sandboxDir = mkdtempSync(path.join(os.tmpdir(), 'skill-router-route-workflow-malformed-'));
+  const homeDir = path.join(sandboxDir, 'home');
+  const projectDir = path.join(sandboxDir, 'project');
+  const dataDir = path.join(sandboxDir, 'plugin-data');
+
+  mkdirSync(path.join(homeDir, '.claude', 'skills'), { recursive: true });
+  mkdirSync(projectDir, { recursive: true });
+
+  writeSkill(
+    homeDir,
+    '.claude/skills/systematic-debugging',
+    `---
+name: systematic-debugging
+description: Diagnose and resolve programming errors.
+domain_tags:
+  - coding
+task_tags:
+  - debugging
+triggers:
+  - 排查 bug
+  - 报错
+---
+先复现问题。
+再缩小错误范围。
+`
+  );
+
+  const initResult = spawnSync('node', ['/Users/lpb/workspace/myProjects/plugin/ClaudeCodeSkillRouterPlugin/router/init.js'], {
+    cwd: projectDir,
+    env: {
+      ...process.env,
+      HOME: homeDir,
+      CLAUDE_PLUGIN_DATA: dataDir,
+    },
+    encoding: 'utf8',
+  });
+
+  assert.equal(initResult.status, 0, initResult.stderr);
+  writeFileSync(path.join(dataDir, 'workflows', 'workflows.json'), '{not json}\n');
+
+  const routeResult = spawnSync('node', ['/Users/lpb/workspace/myProjects/plugin/ClaudeCodeSkillRouterPlugin/router/route.js'], {
+    cwd: projectDir,
+    env: {
+      ...process.env,
+      HOME: homeDir,
+      CLAUDE_PLUGIN_DATA: dataDir,
+      CLAUDE_USER_PROMPT: '帮我排查这个报错',
+    },
+    encoding: 'utf8',
+  });
+
+  assert.equal(routeResult.status, 0, routeResult.stderr);
+
+  const payload = JSON.parse(routeResult.stdout);
+  assert.equal(payload.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
+  assert.match(payload.hookSpecificOutput.additionalContext, /systematic-debugging/);
+  assert.match(payload.hookSpecificOutput.additionalContext, /先复现问题/);
+  assert.doesNotMatch(payload.hookSpecificOutput.additionalContext, /research-to-plan/);
+
+  const logPath = path.join(dataDir, 'stats', 'routing-log.jsonl');
+  const logLines = readFileSync(logPath, 'utf8').trim().split('\n');
+  const lastLog = JSON.parse(logLines.at(-1));
+
+  assert.equal(lastLog.selected_workflow, null);
+  assert.equal(lastLog.selected_skill, 'systematic-debugging');
+});
+
 test('route only injects a summary for medium-confidence matches', () => {
   const sandboxDir = mkdtempSync(path.join(os.tmpdir(), 'skill-router-route-medium-'));
   const homeDir = path.join(sandboxDir, 'home');

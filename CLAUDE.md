@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - The main source of truth is still `docs/Claude Code Skill Router Plugin 最终实施文档.md`.
 - A minimal Node-based Compatibility Mode MVP now exists in this repo.
-- Current implementation files include `.claude-plugin/plugin.json`, `hooks/hooks.json`, `router/init.js`, `router/route.js`, `router/inject-context.js`, and `tests/*.test.js`.
+- Current implementation files include `.claude-plugin/plugin.json`, `hooks/hooks.json`, `router/init.js`, `router/route.js`, `router/resolve-workflow.js`, `router/inject-context.js`, and `tests/*.test.js`.
 - There is now a minimal `package.json` with a working test command, but there is still no `tsconfig*.json` and no README yet.
 
 ## Canonical design intent
@@ -202,8 +202,9 @@ If implementation code is added, update this file with:
 - any repo-local conventions introduced by README, Cursor rules, or Copilot instructions
 
 Current MVP status:
-- `router/init.js` scans `~/.claude/skills/` and `<project-root>/.claude/skills/`, parses minimal frontmatter, and writes `skills.json`, `tags-index.json`, and `hash-index.json` under `${CLAUDE_PLUGIN_DATA}`.
-- `router/route.js` reads the generated registry, performs simple trigger/tag-based scoring, and emits `hookSpecificOutput.additionalContext` for one selected skill.
-- Trust boundary in the current MVP: only `user-global` skills may inject actual skill body guidance into `additionalContext`; project-local skills are limited to metadata-level routing output.
-- The current route implementation fails open when registry data is missing or unreadable, returning empty `additionalContext` instead of crashing the hook path.
-- This is intentionally a Compatibility Mode MVP only; Managed Routing Mode, workflows, embeddings, and advanced scoring are still future work.
+- `router/init.js` scans `~/.claude/skills/` and `<project-root>/.claude/skills/`, parses minimal frontmatter, writes `skills.json`, `tags-index.json`, and `hash-index.json`, and now also seeds minimal defaults for `config/`, `stats/`, `taxonomy/`, and `workflows/workflows.json` under `${CLAUDE_PLUGIN_DATA}`.
+- `router/route.js` reads the generated registry, performs simple trigger/tag-based scoring, resolves a minimal workflow layer for explicit multi-step prompts, and emits `hookSpecificOutput.additionalContext` for either one selected skill or one selected workflow.
+- `router/resolve-workflow.js` is now present and intentionally conservative: only strong multi-step prompts such as research→plan phrasing can override normal single-skill routing.
+- Trust boundary in the current MVP remains explicit: only `user-global` skills may inject actual skill body guidance into `additionalContext`; project-local skills and workflows are limited to metadata-level routing output.
+- The current route implementation fails open when registry or workflow data is missing or unreadable, returning empty context or falling back to the normal skill path instead of crashing the hook path.
+- This is still a Compatibility Mode MVP; Managed Routing Mode, embeddings, broader workflow coverage, and advanced scoring/evaluation remain future work.
