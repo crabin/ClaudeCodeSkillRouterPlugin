@@ -209,7 +209,10 @@ Current MVP status:
 - `router/init.js` scans `~/.claude/skills/` and `<project-root>/.claude/skills/`, parses minimal frontmatter, writes `skills.json`, `tags-index.json`, and `hash-index.json`, and also seeds minimal defaults for `config/`, `stats/`, `taxonomy/`, and `workflows/workflows.json` under `${CLAUDE_PLUGIN_DATA}`.
 - `router/route.js` reads the generated registry, performs simple trigger/tag-based scoring, resolves a minimal workflow layer for explicit multi-step prompts, and emits `hookSpecificOutput.additionalContext` for either one selected skill or one selected workflow.
 - `router/resolve-workflow.js` is intentionally conservative: only strong multi-step prompts such as research→plan phrasing can override normal single-skill routing.
-- `scripts/rebuild-index.js`, `scripts/validate-registry.js`, and `scripts/summarize-routing-log.js` now provide the first minimal offline evaluation and maintenance loop for Compatibility Mode.
+- `scripts/rebuild-index.js`, `scripts/validate-registry.js`, and `scripts/summarize-routing-log.js` now provide a stronger offline evaluation and maintenance loop for Compatibility Mode.
+- `scripts/validate-registry.js` now checks closed-world consistency, including duplicate skill ids, extra or missing hash coverage, duplicate tag-bucket ids, and tag/index drift relative to `skills.json`.
+- `scripts/summarize-routing-log.js` now preserves the original top-level counters and also emits richer aggregate sections such as `null_routes`, `routes_by_skill`, `routes_by_workflow`, tag-frequency counters, and `confidence_by_route_type`.
+- Summary attribution is intentionally workflow-first if a malformed or future routing log row contains both `selected_skill` and `selected_workflow`, so route-type confidence reporting stays internally consistent.
 - Trust boundary in the current MVP remains explicit: only `user-global` skills may inject actual skill body guidance into `additionalContext`; project-local skills and workflows are limited to metadata-level routing output.
 - The current route and evaluation tooling both fail soft: unreadable registry/workflow inputs fall back or zero out cleanly instead of crashing the hook path.
 - This is still a Compatibility Mode MVP; Managed Routing Mode, embeddings, broader workflow coverage, and more advanced evaluation remain future work.
