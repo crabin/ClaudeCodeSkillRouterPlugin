@@ -159,13 +159,32 @@ function buildRegistry(projectRoot) {
 
 function initPluginData(pluginDataDir, projectRoot) {
   const registryDir = path.join(pluginDataDir, 'registry');
+  const configDir = path.join(pluginDataDir, 'config');
+  const statsDir = path.join(pluginDataDir, 'stats');
+  const taxonomyDir = path.join(pluginDataDir, 'taxonomy');
+
   ensureDir(registryDir);
+  ensureDir(configDir);
+  ensureDir(statsDir);
+  ensureDir(taxonomyDir);
 
   const registry = buildRegistry(projectRoot);
 
   writeFileSync(path.join(registryDir, 'skills.json'), `${JSON.stringify(registry.skills, null, 2)}\n`);
   writeFileSync(path.join(registryDir, 'tags-index.json'), `${JSON.stringify(registry.tagsIndex, null, 2)}\n`);
   writeFileSync(path.join(registryDir, 'hash-index.json'), `${JSON.stringify(registry.hashIndex, null, 2)}\n`);
+  writeFileSync(
+    path.join(configDir, 'router-config.json'),
+    `${JSON.stringify({ mode: 'compatibility' }, null, 2)}\n`
+  );
+  writeFileSync(
+    path.join(statsDir, 'stats.json'),
+    `${JSON.stringify({ total_routes: 0 }, null, 2)}\n`
+  );
+  writeFileSync(
+    path.join(taxonomyDir, 'tags.json'),
+    `${JSON.stringify({ domains: { coding: ['debugging', 'planning'] } }, null, 2)}\n`
+  );
   writeFileSync(path.join(pluginDataDir, '.initialized'), 'true\n');
 }
 

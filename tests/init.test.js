@@ -72,10 +72,16 @@ triggers:
   const skills = JSON.parse(readFileSync(path.join(dataDir, 'registry', 'skills.json'), 'utf8'));
   const tagsIndex = JSON.parse(readFileSync(path.join(dataDir, 'registry', 'tags-index.json'), 'utf8'));
   const hashIndex = JSON.parse(readFileSync(path.join(dataDir, 'registry', 'hash-index.json'), 'utf8'));
+  const routerConfig = JSON.parse(readFileSync(path.join(dataDir, 'config', 'router-config.json'), 'utf8'));
+  const stats = JSON.parse(readFileSync(path.join(dataDir, 'stats', 'stats.json'), 'utf8'));
+  const tags = JSON.parse(readFileSync(path.join(dataDir, 'taxonomy', 'tags.json'), 'utf8'));
 
   assert.equal(skills.skills.length, 2);
   assert.deepEqual(tagsIndex.task_tags.debugging, ['systematic-debugging']);
   assert.deepEqual(tagsIndex.task_tags.planning, ['write-plans']);
   assert.equal(typeof hashIndex[skills.skills[0].skill_path], 'string');
+  assert.equal(routerConfig.mode, 'compatibility');
+  assert.equal(stats.total_routes, 0);
+  assert.deepEqual(tags.domains.coding, ['debugging', 'planning']);
   assert.match(result.stdout, /initialized/i);
 });
