@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "rebuild-index": "node scripts/rebuild-index.js",
+    "validate-registry": "node scripts/validate-registry.js",
+    "summarize-routing-log": "node scripts/summarize-routing-log.js"
   }
 }

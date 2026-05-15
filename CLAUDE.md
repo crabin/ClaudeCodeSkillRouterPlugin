@@ -143,12 +143,15 @@ The repository now has these working commands:
 ```bash
 npm test
 node --test
+npm run rebuild-index
+npm run validate-registry
+npm run summarize-routing-log
 node router/init.js
 node router/route.js
 ```
 
 Notes:
-- `router/init.js` expects `CLAUDE_PLUGIN_DATA` to be set.
+- `router/init.js`, `npm run rebuild-index`, `npm run validate-registry`, and `npm run summarize-routing-log` all expect `CLAUDE_PLUGIN_DATA` to be set.
 - `router/route.js` expects both `CLAUDE_PLUGIN_DATA` and `CLAUDE_USER_PROMPT` to be set.
 - There is not yet a lint or build pipeline beyond direct Node execution and tests.
 
@@ -202,9 +205,11 @@ If implementation code is added, update this file with:
 - any repo-local conventions introduced by README, Cursor rules, or Copilot instructions
 
 Current MVP status:
-- `router/init.js` scans `~/.claude/skills/` and `<project-root>/.claude/skills/`, parses minimal frontmatter, writes `skills.json`, `tags-index.json`, and `hash-index.json`, and now also seeds minimal defaults for `config/`, `stats/`, `taxonomy/`, and `workflows/workflows.json` under `${CLAUDE_PLUGIN_DATA}`.
+- `router/build-registry.js` now owns the shared index-generation path used by both `router/init.js` and offline maintenance tooling.
+- `router/init.js` scans `~/.claude/skills/` and `<project-root>/.claude/skills/`, parses minimal frontmatter, writes `skills.json`, `tags-index.json`, and `hash-index.json`, and also seeds minimal defaults for `config/`, `stats/`, `taxonomy/`, and `workflows/workflows.json` under `${CLAUDE_PLUGIN_DATA}`.
 - `router/route.js` reads the generated registry, performs simple trigger/tag-based scoring, resolves a minimal workflow layer for explicit multi-step prompts, and emits `hookSpecificOutput.additionalContext` for either one selected skill or one selected workflow.
-- `router/resolve-workflow.js` is now present and intentionally conservative: only strong multi-step prompts such as research→plan phrasing can override normal single-skill routing.
+- `router/resolve-workflow.js` is intentionally conservative: only strong multi-step prompts such as research→plan phrasing can override normal single-skill routing.
+- `scripts/rebuild-index.js`, `scripts/validate-registry.js`, and `scripts/summarize-routing-log.js` now provide the first minimal offline evaluation and maintenance loop for Compatibility Mode.
 - Trust boundary in the current MVP remains explicit: only `user-global` skills may inject actual skill body guidance into `additionalContext`; project-local skills and workflows are limited to metadata-level routing output.
-- The current route implementation fails open when registry or workflow data is missing or unreadable, returning empty context or falling back to the normal skill path instead of crashing the hook path.
-- This is still a Compatibility Mode MVP; Managed Routing Mode, embeddings, broader workflow coverage, and advanced scoring/evaluation remain future work.
+- The current route and evaluation tooling both fail soft: unreadable registry/workflow inputs fall back or zero out cleanly instead of crashing the hook path.
+- This is still a Compatibility Mode MVP; Managed Routing Mode, embeddings, broader workflow coverage, and more advanced evaluation remain future work.
