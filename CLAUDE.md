@@ -4,9 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current repository state
 
-- The repository is currently documentation-first. The main source of truth is `docs/Claude Code Skill Router Plugin 最终实施文档.md`.
-- There is currently no `package.json`, no `tsconfig*.json`, no test directory, no README, and no repo-local Cursor/Copilot instruction files.
-- Do not assume build, lint, or test commands exist yet. If implementation files are added later, update this file with the real commands.
+- The main source of truth is still `docs/Claude Code Skill Router Plugin 最终实施文档.md`.
+- A minimal Node-based Compatibility Mode MVP now exists in this repo.
+- Current implementation files include `.claude-plugin/plugin.json`, `hooks/hooks.json`, `router/init.js`, `router/route.js`, `router/inject-context.js`, and `tests/*.test.js`.
+- There is now a minimal `package.json` with a working test command, but there is still no `tsconfig*.json` and no README yet.
 
 ## Canonical design intent
 
@@ -137,7 +138,19 @@ The important architecture rule is that routing happens **before** the model han
 
 ## Currently available commands
 
-There are no repository-defined build, lint, or test commands yet because there is no implementation manifest in the repo.
+The repository now has these working commands:
+
+```bash
+npm test
+node --test
+node router/init.js
+node router/route.js
+```
+
+Notes:
+- `router/init.js` expects `CLAUDE_PLUGIN_DATA` to be set.
+- `router/route.js` expects both `CLAUDE_PLUGIN_DATA` and `CLAUDE_USER_PROMPT` to be set.
+- There is not yet a lint or build pipeline beyond direct Node execution and tests.
 
 ## Planned entrypoints from the implementation document
 
@@ -188,4 +201,9 @@ If implementation code is added, update this file with:
 - actual package layout
 - any repo-local conventions introduced by README, Cursor rules, or Copilot instructions
 
-Until then, treat the implementation document as the canonical source for architecture and intended behavior.
+Current MVP status:
+- `router/init.js` scans `~/.claude/skills/` and `<project-root>/.claude/skills/`, parses minimal frontmatter, and writes `skills.json`, `tags-index.json`, and `hash-index.json` under `${CLAUDE_PLUGIN_DATA}`.
+- `router/route.js` reads the generated registry, performs simple trigger/tag-based scoring, and emits `hookSpecificOutput.additionalContext` for one selected skill.
+- Trust boundary in the current MVP: only `user-global` skills may inject actual skill body guidance into `additionalContext`; project-local skills are limited to metadata-level routing output.
+- The current route implementation fails open when registry data is missing or unreadable, returning empty `additionalContext` instead of crashing the hook path.
+- This is intentionally a Compatibility Mode MVP only; Managed Routing Mode, workflows, embeddings, and advanced scoring are still future work.

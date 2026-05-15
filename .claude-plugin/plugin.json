@@ -1,0 +1,5 @@
+{
+  "name": "skill-router",
+  "description": "Tag-based routing and managed skill injection for Claude Code.",
+  "version": "0.1.0"
+}
