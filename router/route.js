@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { classifyPrompt } from './classify-tags.js';
 import { buildAdditionalContext } from './inject-context.js';
@@ -15,22 +16,42 @@ function readRegistry(pluginDataDir) {
   }
 }
 
-function readTrustedSkillBody(skill) {
+function isTrustedGlobalSkill(skill) {
   if (skill.source_type !== 'user-global') {
+    return false;
+  }
+
+  try {
+    const trustedRoot = realpathSync(path.join(os.homedir(), '.claude', 'skills'));
+    const resolvedSkillPath = realpathSync(skill.skill_path);
+    const relativePath = path.relative(trustedRoot, resolvedSkillPath);
+
+    return relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
+  } catch {
+    return false;
+  }
+}
+
+function readTrustedSkillBody(skill) {
+  if (!isTrustedGlobalSkill(skill)) {
     return '';
   }
 
-  const content = readFileSync(skill.skill_path, 'utf8');
-  if (!content.startsWith('---\n')) {
-    return content.trim();
-  }
+  try {
+    const content = readFileSync(skill.skill_path, 'utf8');
+    if (!content.startsWith('---\n')) {
+      return content.trim();
+    }
 
-  const endIndex = content.indexOf('\n---', 4);
-  if (endIndex === -1) {
-    return content.trim();
-  }
+    const endIndex = content.indexOf('\n---', 4);
+    if (endIndex === -1) {
+      return content.trim();
+    }
 
-  return content.slice(endIndex + 4).trim();
+    return content.slice(endIndex + 4).trim();
+  } catch {
+    return '';
+  }
 }
 
 const pluginDataDir = process.env.CLAUDE_PLUGIN_DATA;
@@ -46,15 +67,22 @@ if (!prompt) {
 
 const skills = readRegistry(pluginDataDir);
 const classification = classifyPrompt(prompt);
-const selectedSkill = selectSkill(skills, prompt, classification);
-const skillBody = selectedSkill ? readTrustedSkillBody(selectedSkill) : '';
-const additionalContext = selectedSkill ? buildAdditionalContext(selectedSkill, skillBody) : '';
+const selectedMatch = selectSkill(skills, prompt, classification);
+const selectedSkill = selectedMatch ? selectedMatch.skill : null;
+const skillBody =
+  selectedMatch?.confidence === 'high' && selectedSkill
+    ? readTrustedSkillBody(selectedSkill)
+    : '';
+const additionalContext = selectedMatch
+  ? buildAdditionalContext(selectedSkill, skillBody, selectedMatch.confidence)
+  : '';
 
 logRoute(pluginDataDir, {
   prompt,
   domain_tags: classification.domain_tags,
   task_tags: classification.task_tags,
   selected_skill: selectedSkill ? selectedSkill.name : null,
+  confidence: selectedMatch ? selectedMatch.confidence : null,
 });
 
 process.stdout.write(

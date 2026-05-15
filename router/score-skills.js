@@ -34,6 +34,18 @@ export function scoreSkill(skill, prompt, classification = { domain_tags: [], ta
   return triggerScore + taskTagScore + domainTagScore + classifiedTaskScore + classifiedDomainScore - antiTriggerPenalty;
 }
 
+export function scoreToConfidence(score) {
+  if (score >= 5) {
+    return 'high';
+  }
+
+  if (score >= 3) {
+    return 'medium';
+  }
+
+  return 'low';
+}
+
 export function selectSkill(skills, prompt, classification) {
   const ranked = skills
     .map((skill) => ({ skill, score: scoreSkill(skill, prompt, classification) }))
@@ -43,5 +55,8 @@ export function selectSkill(skills, prompt, classification) {
     return null;
   }
 
-  return ranked[0].skill;
+  return {
+    ...ranked[0],
+    confidence: scoreToConfidence(ranked[0].score),
+  };
 }
