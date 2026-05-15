@@ -1,4 +1,4 @@
-export function scoreSkill(skill, prompt) {
+export function scoreSkill(skill, prompt, classification = { domain_tags: [], task_tags: [] }) {
   const promptText = prompt.toLowerCase();
   const triggers = Array.isArray(skill.triggers) ? skill.triggers : [];
   const taskTags = Array.isArray(skill.task_tags) ? skill.task_tags : [];
@@ -22,12 +22,21 @@ export function scoreSkill(skill, prompt) {
     0
   );
 
-  return triggerScore + taskTagScore + domainTagScore - antiTriggerPenalty;
+  const classifiedTaskScore = taskTags.reduce(
+    (total, tag) => total + (classification.task_tags.includes(tag) ? 2 : 0),
+    0
+  );
+  const classifiedDomainScore = domainTags.reduce(
+    (total, tag) => total + (classification.domain_tags.includes(tag) ? 1 : 0),
+    0
+  );
+
+  return triggerScore + taskTagScore + domainTagScore + classifiedTaskScore + classifiedDomainScore - antiTriggerPenalty;
 }
 
-export function selectSkill(skills, prompt) {
+export function selectSkill(skills, prompt, classification) {
   const ranked = skills
-    .map((skill) => ({ skill, score: scoreSkill(skill, prompt) }))
+    .map((skill) => ({ skill, score: scoreSkill(skill, prompt, classification) }))
     .sort((left, right) => right.score - left.score);
 
   if (ranked.length === 0 || ranked[0].score <= 0) {

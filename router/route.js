@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { classifyPrompt } from './classify-tags.js';
 import { buildAdditionalContext } from './inject-context.js';
+import { logRoute } from './log-route.js';
 import { selectSkill } from './score-skills.js';
 
 function readRegistry(pluginDataDir) {
@@ -43,9 +45,17 @@ if (!prompt) {
 }
 
 const skills = readRegistry(pluginDataDir);
-const selectedSkill = selectSkill(skills, prompt);
+const classification = classifyPrompt(prompt);
+const selectedSkill = selectSkill(skills, prompt, classification);
 const skillBody = selectedSkill ? readTrustedSkillBody(selectedSkill) : '';
 const additionalContext = selectedSkill ? buildAdditionalContext(selectedSkill, skillBody) : '';
+
+logRoute(pluginDataDir, {
+  prompt,
+  domain_tags: classification.domain_tags,
+  task_tags: classification.task_tags,
+  selected_skill: selectedSkill ? selectedSkill.name : null,
+});
 
 process.stdout.write(
   `${JSON.stringify({

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -90,6 +90,15 @@ triggers:
   assert.match(payload.hookSpecificOutput.additionalContext, /systematic-debugging/);
   assert.match(payload.hookSpecificOutput.additionalContext, /先复现问题/);
   assert.match(payload.hookSpecificOutput.additionalContext, /验证根因/);
+
+  const logPath = path.join(dataDir, 'stats', 'routing-log.jsonl');
+  const logLines = readFileSync(logPath, 'utf8').trim().split('\n');
+  const lastLog = JSON.parse(logLines.at(-1));
+
+  assert.equal(lastLog.prompt, '帮我排查这个报错');
+  assert.deepEqual(lastLog.domain_tags, ['coding']);
+  assert.deepEqual(lastLog.task_tags, ['debugging']);
+  assert.equal(lastLog.selected_skill, 'systematic-debugging');
 });
 
 test('project-local skills match by metadata but do not inject raw body content', () => {
