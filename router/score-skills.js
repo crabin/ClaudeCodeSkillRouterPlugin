@@ -23,7 +23,7 @@ export function scoreSkill(skill, prompt, classification = { domain_tags: [], ta
   );
 
   const classifiedTaskScore = taskTags.reduce(
-    (total, tag) => total + (classification.task_tags.includes(tag) ? 2 : 0),
+    (total, tag) => total + (classification.task_tags.includes(tag) ? 4 : 0),
     0
   );
   const classifiedDomainScore = domainTags.reduce(
